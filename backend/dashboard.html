@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel de Tareas - Backend</title>
+<style>
+  body { font-family: Arial; margin: 20px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  input[type=text] { width: 200px; }
+</style>
+</head>
+<body>
+<h1>Panel de Tareas (Backend)</h1>
+<input type="text" id="newTask" placeholder="Nueva tarea"/>
+<button onclick="addTask()">Agregar</button>
+<table>
+  <thead>
+    <tr><th>ID</th><th>Título</th><th>Completada</th><th>Acciones</th></tr>
+  </thead>
+  <tbody id="tasksTable"></tbody>
+</table>
+
+<script>
+async function fetchTasks() {
+  const res = await fetch('/api/tasks');
+  const tasks = await res.json();
+  const tbody = document.getElementById('tasksTable');
+  tbody.innerHTML = '';
+  tasks.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.id}</td>
+      <td><input type="text" value="${t.title}" onchange="updateTask(${t.id}, this.value, ${t.completed})"></td>
+      <td><input type="checkbox" ${t.completed ? 'checked' : ''} onchange="updateTask(${t.id}, document.querySelector('#title${t.id}').value, this.checked)" id="title${t.id}"></td>
+      <td><button onclick="deleteTask(${t.id})">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function addTask() {
+  const title = document.getElementById('newTask').value;
+  if (!title) return alert('Ingrese un título');
+  await fetch('/api/tasks', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({title, completed:false}) });
+  document.getElementById('newTask').value = '';
+  fetchTasks();
+}
+
+async function updateTask(id, title, completed) {
+  await fetch('/api/tasks/' + id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title, completed}) });
+  fetchTasks();
+}
+
+async function deleteTask(id) {
+  await fetch('/api/tasks/' + id, { method:'DELETE' });
+  fetchTasks();
+}
+
+fetchTasks();
+</script>
+</body>
+</html>

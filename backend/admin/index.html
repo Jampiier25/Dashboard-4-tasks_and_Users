@@ -1,0 +1,189 @@
+<!-- backend/admin/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Panel</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #eee; }
+    input, select { margin: 4px 0; padding: 4px; }
+    button { margin-left: 4px; }
+    h2 { margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+
+  <h2>Usuarios</h2>
+  <form id="userForm">
+    <input id="name" placeholder="Nombre" required>
+    <input id="email" placeholder="Email" required>
+    <input id="password" type="password" placeholder="Password" required>
+    <select id="role">
+      <option value="employee">Employee</option>
+      <option value="boss">Boss</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button type="submit">Crear usuario</button>
+  </form>
+
+  <table id="userTable">
+    <thead>
+      <tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Acciones</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Tareas</h2>
+  <form id="taskForm">
+    <input id="title" placeholder="Título" required>
+    <input id="description" placeholder="Descripción">
+    <select id="status">
+      <option value="none">None</option>
+      <option value="pending">Pending</option>
+      <option value="in_progress">In Progress</option>
+      <option value="completed">Completed</option>
+    </select>
+    <input id="assignedToId" placeholder="ID del usuario asignado" type="number">
+    <button type="submit">Crear tarea</button>
+  </form>
+
+  <table id="taskTable">
+    <thead>
+      <tr><th>ID</th><th>Título</th><th>Descripción</th><th>Status</th><th>Asignado a</th><th>Acciones</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (!token) {
+      document.body.innerHTML = "<h2>Token de administrador no provisto</h2>";
+    }
+
+    const API_URL = '/api';
+
+    // --- USUARIOS ---
+    const userTableBody = document.querySelector('#userTable tbody');
+    const userForm = document.getElementById('userForm');
+
+    async function fetchUsers() {
+      try {
+        const res = await fetch(`${API_URL}/users`, {
+          headers: { 'x-admin-token': token }
+        });
+        const data = await res.json();
+        userTableBody.innerHTML = '';
+        data.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.id}</td>
+            <td>${u.name}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>
+              <button onclick="deleteUser(${u.id})">Eliminar</button>
+            </td>
+          `;
+          userTableBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Error al obtener usuarios', err);
+      }
+    }
+
+    userForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+
+      await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'x-admin-token': token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, password, role })
+      });
+      userForm.reset();
+      fetchUsers();
+    });
+
+    async function deleteUser(id) {
+      await fetch(`${API_URL}/users/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': token }
+      });
+      fetchUsers();
+    }
+
+    // --- TAREAS ---
+    const taskTableBody = document.querySelector('#taskTable tbody');
+    const taskForm = document.getElementById('taskForm');
+
+    async function fetchTasks() {
+      try {
+        const res = await fetch(`${API_URL}/tasks`, {
+          headers: { 'x-admin-token': token }
+        });
+        const data = await res.json();
+        taskTableBody.innerHTML = '';
+        data.forEach(t => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${t.id}</td>
+            <td>${t.title}</td>
+            <td>${t.description}</td>
+            <td>${t.status}</td>
+            <td>${t.assignedToId || '-'}</td>
+            <td>
+              <button onclick="deleteTask(${t.id})">Eliminar</button>
+            </td>
+          `;
+          taskTableBody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Error al obtener tareas', err);
+      }
+    }
+
+    taskForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const description = document.getElementById('description').value;
+      const status = document.getElementById('status').value;
+      const assignedToId = document.getElementById('assignedToId').value || null;
+
+      await fetch(`${API_URL}/tasks`, {
+        method: 'POST',
+        headers: {
+          'x-admin-token': token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, description, status, assignedToId })
+      });
+
+      taskForm.reset();
+      fetchTasks();
+    });
+
+    async function deleteTask(id) {
+      await fetch(`${API_URL}/tasks/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': token }
+      });
+      fetchTasks();
+    }
+
+    // --- Inicializar datos ---
+    fetchUsers();
+    fetchTasks();
+  </script>
+</body>
+</html>
